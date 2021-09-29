@@ -11,19 +11,27 @@
 #define THRESHOLD 90
 
 int cells = 0;
-void *memcpy(void *dest, const void * src, size_t n);
 
 //Declaring the array to store the image (unsigned char = unsigned 8 bit)
+
 unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS];
-unsigned char gray_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS];
-unsigned char bw_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS];
-unsigned char eroded_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS];
 unsigned char output_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS];
+unsigned char image1[BMP_WIDTH][BMP_HEIGHT];
+unsigned char image2[BMP_WIDTH][BMP_HEIGHT];
 
+unsigned char (*p1)[BMP_HEIGHT] = image1;
+unsigned char (*p2)[BMP_HEIGHT] = image2;
 
+int erodeMatrix[4][2] = {{-1, 0}, {1, 0}, {0, 1}, {0, -1}};
+int bigErodeMatrix[20][2] = {
+    {-2, -2}, {-2, -1}, {-2, 0}, {-2, 1}, {-2, 2}, 
+    {-1, -2}, {-1, -1}, {-1, 1}, {-1, 2},
+    {0, -2},  {0, 2}, 
+    {1, -2}, {1, -1}, {1, 1}, {1, 2},
+    {2, -2}, {2, -1}, {2, 0}, {2, 1}, {2, 2}
+};
 
-
-int coord[5000][2];
+int coord[1000][2];
 
 void setPixelColor(unsigned char arr[BMP_CHANNELS], int value) {
     arr[0] = value;
@@ -32,72 +40,98 @@ void setPixelColor(unsigned char arr[BMP_CHANNELS], int value) {
 }
 
 
-void convertToGray(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], unsigned char output_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS]){
+void convertToBW(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], unsigned char (*p1)[BMP_WIDTH]){
     for (int x = 0; x < BMP_WIDTH; x++){
         for (int y = 0; y < BMP_HEIGHT; y++){
             int sum = 0;
             for (int c = 0; c < BMP_CHANNELS; c++){
                 sum += input_image[x][y][c];
             }
-            setPixelColor(output_image[x][y], sum / 3);
+            p1[x][y] = sum / 3 > THRESHOLD ? 255 : 0;
         }
     }
 }
 
-void convertToBW(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], unsigned char output_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS]){
+void convertToImage(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], unsigned char (*p1)[BMP_WIDTH]){
     for (int x = 0; x < BMP_WIDTH; x++){
         for (int y = 0; y < BMP_HEIGHT; y++){
-            if (input_image[x][y][0] > THRESHOLD){
-                setPixelColor(output_image[x][y], 255);
-            } else {
-                setPixelColor(output_image[x][y], 0);
-            }
+            input_image[x][y][0] = p1[x][y];
+            input_image[x][y][1] = p1[x][y];
+            input_image[x][y][2] = p1[x][y];
         }
     }
 }
 
-void erode(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], unsigned char output_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS]) {
+
+
+
+
+void erode(unsigned char (*p1)[BMP_WIDTH], unsigned char (*p2)[BMP_WIDTH], int erodeMatrix[4][2], int bigErodeMatrix[20][2]) {
     for (int x = 0; x < BMP_WIDTH; x++){    
         for (int y = 0; y < BMP_HEIGHT; y++){
-            if (input_image[x + 1][y] && !input_image[x + 1][y][0]){
-                setPixelColor(output_image[x][y], 0);
-            } else if (input_image[x - 1][y] && !input_image[x - 1][y][0]){
-                setPixelColor(output_image[x][y], 0);
-            } else if (input_image[x][y - 1] && !input_image[x][y - 1][0]){
-                setPixelColor(output_image[x][y], 0);
-            } else if (input_image[x][y + 1] && !input_image[x][y + 1][0]){
-                setPixelColor(output_image[x][y], 0);
-            } else {
-                setPixelColor(output_image[x][y], input_image[x][y][0]);
+            int countBlack = 0;
+            int found = 0;
+            for (int i = 0; i < 4; i++){
+                if (
+                    x + erodeMatrix[i][0] >= 0 && x + erodeMatrix[i][0] < BMP_HEIGHT && 
+                    y + erodeMatrix[i][1] >= 0 && y + erodeMatrix[i][1] < BMP_HEIGHT && 
+                    p1[x + erodeMatrix[i][0]][y + erodeMatrix[i][1]] == 0
+                ){
+                    found = 1;
+                    countBlack++;
+                    p2[x][y] = 0;
+                } 
+            } 
+            if (!found) {
+                p2[x][y] = p1[x][y];
+            }
+            for (int i = 0; i < 20; i++){
+                if (
+                    x + bigErodeMatrix[i][0] >= 0 && x + bigErodeMatrix[i][0] < BMP_HEIGHT && 
+                    y + bigErodeMatrix[i][1] >= 0 && y + bigErodeMatrix[i][1] < BMP_HEIGHT && 
+                    p1[x + bigErodeMatrix[i][0]][y + bigErodeMatrix[i][1]] == 0
+                ){
+                    countBlack++;
+                } 
+            }
+            if (countBlack <= 9 && p1[x][y] == 0) {
+                for (int i = -1; i <= 1; i++){
+                    for (int j = -1; j <= 1; j++){
+                        if (
+                        x + bigErodeMatrix[i][0] >= 0 && x + bigErodeMatrix[i][0] < BMP_HEIGHT && 
+                        y + bigErodeMatrix[i][1] >= 0 && y + bigErodeMatrix[i][1] < BMP_HEIGHT) {
+                            p2[x + bigErodeMatrix[i][0]][y + bigErodeMatrix[i][1]] = 0;
+                        }
+                    }   
+                }
             }
         }
     }
 }
 
-int frameCheck(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], int x, int y)   {
+int frameCheck(unsigned char (*p1)[BMP_WIDTH], int x, int y)   {
     for (int i = -6; i <= 7; i++) {
         if(i == -6 || i == 7) {
             for (int j = -6; j <= 7; j++) {
-                if(input_image[i + x][j + y][0]) {
+                if(i + x >= 0 && i + x < BMP_WIDTH && j + y >= 0 && j + y < BMP_WIDTH && p1[i + x][j + y]) {
                     return 1;
                 }
             }
-        } else {
-            if(input_image[x + i][y - 6][0] || input_image[x + i][y + 7][0]) {
-                return 1;
-            }
+        } else if(i + x >= 0 && i + x < BMP_WIDTH && p1[x + i][y - 6] || p1[x + i][y + 7]) {
+            return 1;
         }
     }
     return 0;
 }
 
-void setAllBlack(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], int x, int y){
+void setAllBlack(unsigned char (*p1)[BMP_WIDTH], int x, int y){
     for (int i = -5; i <= 6; i++) {
         for (int j = -5; j <= 6; j++){
-            setPixelColor(input_image[x + i][y + j], 0);
+            p1[x + i][y + j] = 0;
         }
     }
 }
+
 void setRed(unsigned char pixel[BMP_CHANNELS]){
     pixel[0] = 255;
     pixel[1] = 0;
@@ -105,25 +139,25 @@ void setRed(unsigned char pixel[BMP_CHANNELS]){
     
 }
 
-void detectCells(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS]) {
+void detectCells(unsigned char (*p1)[BMP_WIDTH]) {
     for (int x = 0; x < BMP_WIDTH; x++){    
         for (int y = 0; y < BMP_HEIGHT; y++){
-            if(input_image[x][y][0]) {
-                if(!frameCheck(input_image, x, y)) {
-                    setAllBlack(input_image, x, y);
-                    cells++;
+            if(p1[x][y]) {
+                if(!frameCheck(p1, x, y)) {
+                    setAllBlack(p1, x, y);
                     coord[cells][0] = x;
                     coord[cells][1] = y;
+                    cells++;
                 }
             }
         }
     }
 }
 
-int checkWhite(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS]) {
+int checkWhite(unsigned char (*p1)[BMP_WIDTH]) {
     for(int i = 0; i < BMP_HEIGHT; i++) {
         for(int j = 0; j < BMP_WIDTH; j++) {
-            if(input_image[i][j][0]) {
+            if(p1[i][j]) {
                 return 1;
             }
         }
@@ -132,23 +166,34 @@ int checkWhite(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS]) {
 } 
 
 
-void drawCross(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], int coords[5000][2]) {
+void drawCross(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], int coords[1000][2]) {
     for (int i = 0; i < cells; i++) {
         for (int j = -7; j <= 8; j++) {
-            setRed(input_image[coords[i][0] + j][coords[i][1]]);
-            setRed(input_image[coords[i][0]][coords[i][1] + j]);
-            setRed(input_image[coords[i][0] + j][coords[i][1] + 1]);
-            setRed(input_image[coords[i][0] + 1][coords[i][1] + j]);
+            if (coords[i][0] + j >= 0 && coords[i][0] + j < BMP_HEIGHT){
+                setRed(input_image[coords[i][0] + j][coords[i][1]]);
+            } 
+            if (coords[i][1] + j >= 0 && coords[i][1] + j < BMP_HEIGHT){
+                setRed(input_image[coords[i][0]][coords[i][1] + j]);
+            }
+            if (coords[i][0] + j >= 0 && coords[i][0] + j < BMP_WIDTH && coords[i][1] + 1 < BMP_WIDTH){
+                setRed(input_image[coords[i][0] + j][coords[i][1] + 1]);
+            }
+            if (coords[i][1] + j >= 0 && coords[i][1] + j < BMP_WIDTH && coords[i][0] + 1 < BMP_WIDTH){
+                setRed(input_image[coords[i][0] + 1][coords[i][1] + j]);
+            }
+            
         }
     }
 }
 
+void swap(unsigned char (**p1)[BMP_HEIGHT], unsigned char (**p2)[BMP_HEIGHT]) {
+    unsigned char (*p3)[BMP_HEIGHT] = *p1;
+    *p1 = *p2;
+    *p2 = p3;
+}
 
 // Main function
 int main(int argc, char** argv){
-
-
-
     if (argc != 3){
       fprintf(stderr, "Usage: %s <output file path> <output file path>\n", argv[0]);
       exit(1);
@@ -156,32 +201,33 @@ int main(int argc, char** argv){
     clock_t start, end;
     double cpu_time_used;
     start = clock();
-    //printf("It works\n");
 
     //Load image from file
     read_bitmap(argv[1], input_image);
-
-
-    convertToGray(input_image, gray_image);
-    convertToBW(gray_image, bw_image);
-    detectCells(bw_image);
+    convertToBW(input_image, p1);
+    //convertToImage(input_image, p1);
+    detectCells(p1);
     
-    while(checkWhite(bw_image)) {
-        erode(bw_image, eroded_image);
-        detectCells(eroded_image);
-        memcpy(&bw_image, &eroded_image, sizeof(eroded_image));
+    int i=0;
+    while(checkWhite(p1)) {
+        erode(p1, p2, erodeMatrix, bigErodeMatrix);
+        swap(&p1, &p2);
+        detectCells(p1);
+        convertToImage(output_image, p1);
+        char string[100];
+        snprintf(string, 100, "./pictures/picture%d.bmp", i);
+        write_bitmap(output_image, string);
+        i++;
     }
-
     drawCross(input_image, coord);
     
     // Save image to file
     write_bitmap(input_image, argv[2]);
-
-    //printf("Done! Found %d cells\n", cells);
-   
-
+    printf("Done! Found %d cells\n", cells);
     
-    
+    for (int i = 0; i < cells; i++){
+        //printf("(%d, %d)\t ", coord[i][0], coord[i][1]);
+    }
     
     end = clock();
     cpu_time_used = end - start;
