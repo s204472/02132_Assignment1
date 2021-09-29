@@ -1,18 +1,13 @@
-//To compile (linux/mac): gcc cbmp.c main.c -o main.out -std=c99
-//To run (linux/mac): ./main.out example.bmp example_inv.bmp
-
 //To compile (win): gcc cbmp.c main.c -o main.exe -std=c99
 //To run (win): main.exe example.bmp example_inv.bmp
-
 #include <stdlib.h>
 #include <stdio.h> 
 #include "cbmp.h"
 #include <time.h>
-#define THRESHOLD 90
+#define THRESHOLD 95
 
 int cells = 0;
-
-//Declaring the array to store the image (unsigned char = unsigned 8 bit)
+int coord[1000][2];
 
 unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS];
 unsigned char output_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS];
@@ -31,14 +26,12 @@ int bigErodeMatrix[20][2] = {
     {2, -2}, {2, -1}, {2, 0}, {2, 1}, {2, 2}
 };
 
-int coord[1000][2];
 
 void setPixelColor(unsigned char arr[BMP_CHANNELS], int value) {
     arr[0] = value;
     arr[1] = value;
     arr[2] = value;
 }
-
 
 void convertToBW(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], unsigned char (*p1)[BMP_WIDTH]){
     for (int x = 0; x < BMP_WIDTH; x++){
@@ -94,7 +87,7 @@ void erode(unsigned char (*p1)[BMP_WIDTH], unsigned char (*p2)[BMP_WIDTH], int e
                     countBlack++;
                 } 
             }
-            if (countBlack <= 9 && p1[x][y] == 0) {
+            if (countBlack <= 11 && p1[x][y] == 0) {
                 for (int i = -1; i <= 1; i++){
                     for (int j = -1; j <= 1; j++){
                         if (
@@ -110,14 +103,14 @@ void erode(unsigned char (*p1)[BMP_WIDTH], unsigned char (*p2)[BMP_WIDTH], int e
 }
 
 int frameCheck(unsigned char (*p1)[BMP_WIDTH], int x, int y)   {
-    for (int i = -6; i <= 7; i++) {
-        if(i == -6 || i == 7) {
-            for (int j = -6; j <= 7; j++) {
+    for (int i = -8; i <= 9; i++) {
+        if(i == -8 || i == 9) {
+            for (int j = -8; j <= 9; j++) {
                 if(i + x >= 0 && i + x < BMP_WIDTH && j + y >= 0 && j + y < BMP_WIDTH && p1[i + x][j + y]) {
                     return 1;
                 }
             }
-        } else if(i + x >= 0 && i + x < BMP_WIDTH && p1[x + i][y - 6] || p1[x + i][y + 7]) {
+        } else if(i + x >= 0 && i + x < BMP_WIDTH && p1[x + i][y - 8] || p1[x + i][y + 9]) {
             return 1;
         }
     }
@@ -125,8 +118,8 @@ int frameCheck(unsigned char (*p1)[BMP_WIDTH], int x, int y)   {
 }
 
 void setAllBlack(unsigned char (*p1)[BMP_WIDTH], int x, int y){
-    for (int i = -5; i <= 6; i++) {
-        for (int j = -5; j <= 6; j++){
+    for (int i = -7; i <= 8; i++) {
+        for (int j = -7; j <= 8; j++){
             p1[x + i][y + j] = 0;
         }
     }
@@ -180,8 +173,7 @@ void drawCross(unsigned char input_image[BMP_WIDTH][BMP_HEIGHT][BMP_CHANNELS], i
             }
             if (coords[i][1] + j >= 0 && coords[i][1] + j < BMP_WIDTH && coords[i][0] + 1 < BMP_WIDTH){
                 setRed(input_image[coords[i][0] + 1][coords[i][1] + j]);
-            }
-            
+            }   
         }
     }
 }
